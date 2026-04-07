@@ -45,12 +45,13 @@ def intercept_response(response):
         return None
 
     url = response.url
-    # if not any(url.starts_with(endpoint) for endpoint in API_ENDPOINTS):
-    #     return None
     if not any(url.startswith(endpoint) for endpoint in API_ENDPOINTS):
         return None
 
     data = response.json()
+
+    if data is None:
+        return None
 
     # Extract and print user data to console
     if "data" in data.keys():
@@ -124,23 +125,24 @@ def need_to_log_in(page) -> bool:
     if (
         page.get_by_label("Phone number, username, or email").is_visible()
         and page.get_by_label("Password").is_visible()
-        and page.get_by_role("button", name="Log in", exact=True).is_visible()
+        and page.get_by_text("Log in", exact=True).is_visible()
     ):
-        # Cookies are not expired but the login layout is showing. Need to log in.
         return True
 
     if (
         page.get_by_label("Mobile phone, username or email").is_visible()
         and page.get_by_label("Password").is_visible()
-        and page.get_by_role("button", name="Log in", exact=True).is_visible()
+        and page.get_by_text("Log in", exact=True).is_visible()
     ):
-        # Cookies are not expired but the login layout is showing. Need to log in.
         return True
 
-    if page.get_by_label("Mobile number, username or email").is_visible() and page.get_by_label("Password").is_visible() and page.get_by_role("button", name="Log in", exact=True).is_visible():
+    if (
+        page.get_by_label("Mobile number, username or email").is_visible()
+        and page.get_by_label("Password").is_visible()
+        and page.get_by_text("Log in", exact=True).is_visible()
+    ):
         return True
 
-    # Cookies are not expired and the login layout is not showing. No need to log in.
     return False
 
 
@@ -163,9 +165,11 @@ def log_in_if_necessary(page, context, auth_json_path: str):
     if need_to_log_in(page):
         print(f"attempting login with account @{insta_username}...")
         # Log in sequence:
-        if page.get_by_label("Phone number, username, or email").count() > 0:
+        if page.get_by_label("Phone number, username, or email").is_visible():
             page.get_by_label("Phone number, username, or email").fill(insta_username)
-        elif page.get_by_label("Mobile number, username or email").count() > 0:
+        elif page.get_by_label("Mobile number, username or email").is_visible():
+            page.get_by_label("Mobile number, username or email").fill(insta_username)
+        elif page.get_by_label("Mobile number, username or email").is_visible():
             page.get_by_label("Mobile number, username or email").fill(insta_username)
         else:
             raise Exception("Unexpected layout")
@@ -238,7 +242,6 @@ def run(playwright: Playwright, seed: dict, auth_json_path: str) -> None:
 
     # Scroll down
     while True:
-        # scroll_down(page)
         lowest_content = find_lowest_content(page, seed["handle"])
         if lowest_content is None:
             raise (Exception("No posts found in content gallery"))
@@ -249,7 +252,7 @@ if __name__ == "__main__":
     auth_json_path = os.path.join(
         os.path.dirname(__file__), f"login_cookies_{insta_username}.json"
     )
-    seed = {"handle": "eye.on.palestine", "start_date": "2026-02-01"}
+    seed = {"handle": "eye.on.palestine", "start_date": "2024-10-10"}
 
     with sync_playwright() as playwright:
         run(playwright, seed, auth_json_path)
