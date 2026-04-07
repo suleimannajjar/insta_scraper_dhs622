@@ -137,6 +137,9 @@ def need_to_log_in(page) -> bool:
         # Cookies are not expired but the login layout is showing. Need to log in.
         return True
 
+    if page.get_by_label("Mobile number, username or email").is_visible() and page.get_by_label("Password").is_visible() and page.get_by_role("button", name="Log in", exact=True).is_visible():
+        return True
+
     # Cookies are not expired and the login layout is not showing. No need to log in.
     return False
 
@@ -160,7 +163,7 @@ def log_in_if_necessary(page, context, auth_json_path: str):
     if need_to_log_in(page):
         print(f"attempting login with account @{insta_username}...")
         # Log in sequence:
-        if page.get_by_label(has_text="Phone number, username, or email").count() > 0:
+        if page.get_by_label("Phone number, username, or email").count() > 0:
             page.get_by_label("Phone number, username, or email").fill(insta_username)
         elif page.get_by_label("Mobile number, username or email").count() > 0:
             page.get_by_label("Mobile number, username or email").fill(insta_username)
@@ -168,7 +171,7 @@ def log_in_if_necessary(page, context, auth_json_path: str):
             raise Exception("Unexpected layout")
 
         page.get_by_label("Password").fill(insta_password)
-        page.get_by_role("button", name="Log in", exact=True).click()
+        page.get_by_text("Log in", exact=True).click()
 
         # store authentication cookie
         context.storage_state(path=auth_json_path)
@@ -235,6 +238,7 @@ def run(playwright: Playwright, seed: dict, auth_json_path: str) -> None:
 
     # Scroll down
     while True:
+        # scroll_down(page)
         lowest_content = find_lowest_content(page, seed["handle"])
         if lowest_content is None:
             raise (Exception("No posts found in content gallery"))
