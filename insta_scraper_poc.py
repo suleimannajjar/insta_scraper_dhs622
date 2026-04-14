@@ -16,29 +16,16 @@ API_ENDPOINTS = (
     "https://www.instagram.com/graphql",
 )
 
+def save_user_metadata(user_record: dict):
+    with open(user_jsonl_path, "a") as my_file:
+        my_file.write(json.dumps(user_record) + '\n')
+    return
 
-def parse_video_urls(video_xml: str) -> list:
-    if video_xml is None:
-        return []
-    soup = BeautifulSoup(video_xml, "xml")
-    video_urls = [
-        video_url_tag.contents[0] for video_url_tag in soup.find_all("BaseURL")
-    ]
-    return video_urls
-
-
-def get_videos_from_content_dict(content_data: dict) -> list:
-    videos = []
-
-    if content_data["video_dash_manifest"] is not None:
-        videos = parse_video_urls(content_data["video_dash_manifest"])
-
-    if content_data["carousel_media"] is not None:
-        for each_item in content_data["carousel_media"]:
-            videos += parse_video_urls(each_item)
-
-    return videos
-
+def save_content_metadata(content_records: list[dict]):
+    with open(content_jsonl_path, "a") as my_file:
+        for content_record in content_records:
+            my_file.write(json.dumps(content_record) + '\n')
+    return
 
 def intercept_response(response):
     if not response.request.resource_type == "xhr":
@@ -58,6 +45,7 @@ def intercept_response(response):
         if "user" in data["data"].keys():
             user_data = data["data"]["user"]
             print(user_data)
+            save_user_metadata(user_data)
             print("=============================")
 
     # Extract and print content data to console
@@ -72,13 +60,10 @@ def intercept_response(response):
                 ]["edges"]
 
                 content_records = [edge["node"] for edge in edges]
+                save_content_metadata(content_records)
 
                 for content_record in content_records:
                     print(content_record)
-                    print("=============================")
-                    video_urls = get_videos_from_content_dict(content_record)
-                    for video_url in video_urls:
-                        print(video_url)
                     print("=============================")
     return None
 
@@ -240,6 +225,8 @@ def run(playwright: Playwright, seed: dict, auth_json_path: str) -> None:
     # Visit the target account's home page:
     visit_target_home_page(page, seed["handle"])
 
+    expect(page.get_by_text(seed["handle"])).to_be_visible()
+
     # Scroll down
     while True:
         lowest_content = find_lowest_content(page, seed["handle"])
@@ -252,7 +239,10 @@ if __name__ == "__main__":
     auth_json_path = os.path.join(
         os.path.dirname(__file__), f"login_cookies_{insta_username}.json"
     )
-    seed = {"handle": "eye.on.palestine", "start_date": "2024-10-10"}
+    seed = {"handle": "eye.on.palestine", "start_date": "2023-10-07"}
+
+    user_jsonl_path = os.path.join(os.path.dirname(__file__), f"{seed['handle']}_user_metadata.jsonl")
+    content_jsonl_path = os.path.join(os.path.dirname(__file__), f"{seed['handle']}_content_metadata.jsonl")
 
     with sync_playwright() as playwright:
         run(playwright, seed, auth_json_path)
